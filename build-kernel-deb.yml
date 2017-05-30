@@ -1,0 +1,54 @@
+- hosts: all
+  user: linux
+
+  tasks:
+
+    - name: apt-get update
+      become: yes
+      apt:
+        update_cache: yes
+
+    - name: download all dependencies
+      become: yes
+      become_user: root
+      apt: name={{item}} state=present 
+      with_items:
+        - ncurses-dev
+        - fakeroot
+        - bc
+        - libssl-dev
+        - build-essential
+        - kernel-package
+
+    - name: download 4.11 source
+      unarchive:
+        src: https://cdn.kernel.org/pub/linux/kernel/v4.x/linux-4.11.2.tar.xz
+        dest: /home/linux
+        remote_src: true       
+ 
+    - name: copy actual cfg 
+      shell: cp /boot/config-$(uname -r) /home/linux/linux-4.11.2/.config
+
+    - name: touch REPORTING-BUGS (bug 4.11 build-kpkg)
+      file: 
+        path: /home/linux/linux-4.11.2/REPORTING-BUGS
+        state: touch      
+
+    - name: make oldconfig
+      shell: cd /home/linux/linux-4.11.2/ && yes "" | make oldconfig
+
+    - name: make-kpkg clean
+      command: make-kpkg clean
+      args:
+        chdir: ~/linux-4.11.2
+
+    - name: generate .deb kernel
+      command: fakeroot make-kpkg --initrd kernel-image kernel-headers -j 32
+      args:
+        chdir: ~/linux-4.11.2
+
+
+
+
+
+
